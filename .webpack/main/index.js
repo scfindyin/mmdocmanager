@@ -1027,7 +1027,7 @@ const createWindow = () => {
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            preload: 'C:\\MMDocManager\\.webpack\\renderer\\main_window\\preload.js',
+            preload: 'C:\\mmdocmanager\\.webpack\\renderer\\main_window\\preload.js',
         },
     });
     // Load the index.html file.
@@ -1073,18 +1073,52 @@ electron_1.ipcMain.handle('save-project', async (event, projectData) => {
     }
     catch (error) {
         console.error('Error saving project:', error);
-        return { success: false, error: error.message };
+        const errorMessage = error instanceof Error ? error.message : 'Failed to save project';
+        return {
+            success: false,
+            error: errorMessage
+        };
     }
 });
 electron_1.ipcMain.handle('open-file', async (event, filePath) => {
     try {
         const { shell } = __webpack_require__(/*! electron */ "electron");
-        await shell.openPath(filePath);
+        const fs = __webpack_require__(/*! fs */ "fs");
+        // Check if file exists
+        if (!fs.existsSync(filePath)) {
+            return {
+                success: false,
+                error: 'File does not exist or has been moved'
+            };
+        }
+        // Get file extension
+        const ext = filePath.split('.').pop()?.toLowerCase();
+        // Define supported file types (can be expanded)
+        const supportedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'txt'];
+        if (ext && !supportedTypes.includes(ext)) {
+            return {
+                success: false,
+                error: `File type "${ext}" may not be supported by your system`
+            };
+        }
+        // Attempt to open the file with the default application
+        const openResult = await shell.openPath(filePath);
+        // shell.openPath returns empty string on success, or an error message
+        if (openResult) {
+            return {
+                success: false,
+                error: openResult
+            };
+        }
         return { success: true };
     }
     catch (error) {
         console.error('Error opening file:', error);
-        return { success: false, error: error.message };
+        const errorMessage = error instanceof Error ? error.message : 'Failed to open file';
+        return {
+            success: false,
+            error: errorMessage
+        };
     }
 });
 

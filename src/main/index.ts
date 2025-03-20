@@ -6,6 +6,10 @@ if (require('electron-squirrel-startup')) {
   app.quit();
 }
 
+// These are globals defined by Electron Forge / Webpack
+declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
+declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
+
 let mainWindow: BrowserWindow | null = null;
 
 const createWindow = (): void => {
@@ -67,19 +71,60 @@ ipcMain.handle('save-project', async (event, projectData) => {
   try {
     // TODO: Implement project saving logic
     return { success: true };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error saving project:', error);
-    return { success: false, error: error.message };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to save project';
+    return { 
+      success: false, 
+      error: errorMessage 
+    };
   }
 });
 
 ipcMain.handle('open-file', async (event, filePath) => {
   try {
     const { shell } = require('electron');
-    await shell.openPath(filePath);
+    const fs = require('fs');
+    
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return { 
+        success: false, 
+        error: 'File does not exist or has been moved' 
+      };
+    }
+    
+    // Get file extension
+    const ext = filePath.split('.').pop()?.toLowerCase();
+    
+    // Define supported file types (can be expanded)
+    const supportedTypes = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif', 'txt'];
+    
+    if (ext && !supportedTypes.includes(ext)) {
+      return { 
+        success: false, 
+        error: `File type "${ext}" may not be supported by your system` 
+      };
+    }
+    
+    // Attempt to open the file with the default application
+    const openResult = await shell.openPath(filePath);
+    
+    // shell.openPath returns empty string on success, or an error message
+    if (openResult) {
+      return { 
+        success: false, 
+        error: openResult 
+      };
+    }
+    
     return { success: true };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error opening file:', error);
-    return { success: false, error: error.message };
+    const errorMessage = error instanceof Error ? error.message : 'Failed to open file';
+    return { 
+      success: false, 
+      error: errorMessage
+    };
   }
 }); 

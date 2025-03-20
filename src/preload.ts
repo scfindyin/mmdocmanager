@@ -1,5 +1,17 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+// Define result type for file operations
+interface OperationResult {
+  success: boolean;
+  error?: string;
+}
+
+// Extend the File interface to include Electron's path property
+// We need to use a different approach to extend the File interface
+interface ElectronFile extends File {
+  path: string;
+}
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld(
@@ -16,8 +28,8 @@ declare global {
   interface Window {
     electron: {
       selectFiles: () => Promise<string[]>;
-      saveProject: (projectData: any) => Promise<void>;
-      openFile: (filePath: string) => Promise<void>;
+      saveProject: (projectData: any) => Promise<OperationResult>;
+      openFile: (filePath: string) => Promise<OperationResult>;
     };
   }
 } 
